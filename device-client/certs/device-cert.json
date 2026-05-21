@@ -1,0 +1,8 @@
+{
+  "deviceId": "watch-device-001",
+  "devicePublicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnj1KcGwPRMjud/9hHbRd\n6GFrKfr93Yl1vwMI5/cO9FrB5xhm6QGPGlAJP/EMjka+pqRII0kucMJeMlOpPC5F\naJPKj6W/avFQzaNskPJtA9fz39uMxjm2+vgjXT7YKxlhmY/CpSP+zB0NO9PWx2jO\n5+czRpjlPSqejfMFZPaBRb08GunvGsZui5f9ZnlheEIUBQLDKJI96RPWG5/PtgYl\nEXUJhvySkMz3H1jOaQaVNFQsbLzUjN5c3beGOqW/biLfix3c3vWZuvBuco1VJY+9\ndWjUhb3IKbYp1qmNFax8OGKkryiCvRBtIuzvLTtSUudyLB6fCNCsKntAbRjvmxXn\n6QIDAQAB\n-----END PUBLIC KEY-----\n",
+  "manufacturer": "SmartHealth Watch Inc.",
+  "issuedAt": "2026-05-21T14:56:14.494Z",
+  "expiresAt": "2027-05-21T14:56:14.494Z",
+  "signature": "J6C45jnhQ0uEEMIJE3PMVxpFTePDuUzvHDRm4hgkPQmCrCfXabghTUzDtndwBiB3GOGLm1DUCP86InV0IYsAB1EfAWEWj53PjGCG+OkRs+1mjSEIgkSU8v1mtpZ7HrFRLQLPLcHrERxBZ90KiSSYgiGZBn1RS3s8FGxnoFm7k493Kwq/hLFn34vyjw5m9N1v3sqLbEWx2NhHrmeJmGPfWr8gAN2/UB35+sWIsJeVP+MbHhFD37AEDmF52R0/HE1f7C/Te3vdpiUz/2jU7x+d40VJsr0HKbkdlUDGYsPkwEI4guiWz3yIUNXLSgApi7T5vLCdwZCujpdl+j/49VwvcQ=="
+}
