@@ -29,7 +29,7 @@ function base64UrlToBigInt(value: string): bigint {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
   const padded = normalized.padEnd(
     normalized.length + ((4 - (normalized.length % 4)) % 4),
-    "="
+    "=",
   );
 
   const hex = Buffer.from(padded, "base64").toString("hex");
@@ -109,7 +109,9 @@ function randomBigIntLessThan(n: bigint): bigint {
   const byteLength = Math.ceil(n.toString(16).length / 2);
 
   while (true) {
-    const random = BigInt("0x" + crypto.randomBytes(byteLength).toString("hex"));
+    const random = BigInt(
+      "0x" + crypto.randomBytes(byteLength).toString("hex"),
+    );
 
     if (random > 1n && random < n) {
       return random;
@@ -130,17 +132,14 @@ function canonicalizeCredential(credential: AnonymousCredential): string {
 function hashCredentialToBigInt(credential: AnonymousCredential): bigint {
   const canonical = canonicalizeCredential(credential);
 
-  const digest = crypto
-    .createHash("sha256")
-    .update(canonical)
-    .digest("hex");
+  const digest = crypto.createHash("sha256").update(canonical).digest("hex");
 
   return BigInt("0x" + digest);
 }
 
 export function generateAnonymousKeyPair() {
   return crypto.generateKeyPairSync("rsa", {
-    modulusLength: 2048,
+    modulusLength: 1024,
     publicKeyEncoding: {
       type: "spki",
       format: "pem",
@@ -153,7 +152,7 @@ export function generateAnonymousKeyPair() {
 }
 
 export function createAnonymousCredential(
-  anonymousPublicKey: string
+  anonymousPublicKey: string,
 ): AnonymousCredential {
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
@@ -168,7 +167,7 @@ export function createAnonymousCredential(
 
 export function blindCredential(
   credential: AnonymousCredential,
-  issuerPublicKey: BlindIssuerPublicKey
+  issuerPublicKey: BlindIssuerPublicKey,
 ): BlindedCredential {
   const n = base64UrlToBigInt(issuerPublicKey.n);
   const e = base64UrlToBigInt(issuerPublicKey.e);
@@ -196,7 +195,7 @@ export function blindCredential(
 export function unblindSignature(
   blindSignatureHex: string,
   blindingFactor: bigint,
-  issuerN: bigint
+  issuerN: bigint,
 ): string {
   const blindSignature = hexToBigInt(blindSignatureHex);
   const rInverse = modInv(blindingFactor, issuerN);

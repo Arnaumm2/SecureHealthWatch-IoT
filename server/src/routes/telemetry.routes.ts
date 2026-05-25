@@ -1,44 +1,54 @@
 import { Router } from "express";
-import {
-  verifyCredentialSignature,
-  verifyCredentialFields,
-  verifyTelemetrySignature,
-} from "../services/anonymousCredentialVerify.service";
+import { AnonymousCredential } from "../models/AnonymousCredential.model";
+import { verifyTelemetrySignature } from "../services/anonymousCredentialVerify.service";
 
 export const telemetryRouter = Router();
 
 telemetryRouter.post("/telemetry", async (req, res) => {
   try {
-    const {
-      credential,
-      credentialSignature,
-      telemetry,
-      telemetrySignature,
-    } = req.body;
+    console.log("\nRaw telemetry request received:");
+    console.log(JSON.stringify(req.body, null, 2));
 
-    if (!credential || !credentialSignature || !telemetry || !telemetrySignature) {
+    const credentialId = req.body.credentialId || req.body.cid || req.body.c;
+    const telemetry = req.body.telemetry || req.body.t;
+    const telemetrySignature =
+      req.body.telemetrySignature || req.body.sig || req.body.s;
+
+    if (!credentialId || !telemetry || !telemetrySignature) {
       return res.status(400).json({
-        error: "credential, credentialSignature, telemetry and telemetrySignature are required",
+        error: "credentialId, telemetry and telemetrySignature are required",
       });
     }
 
-    verifyCredentialFields(credential);
-
-    const credentialValid = verifyCredentialSignature({
-      credential,
-      credentialSignature,
+    const credentialRecord = await AnonymousCredential.findOne({
+      credentialId,
     });
 
-    if (!credentialValid) {
+    if (!credentialRecord) {
       return res.status(401).json({
-        error: "invalid_anonymous_credential_signature",
+        error: "anonymous_credential_not_registered",
+      });
+    }
+
+    if (credentialRecord.status !== "active") {
+      return res.status(401).json({
+        error: "anonymous_credential_not_active",
+      });
+    }
+
+    if (Date.now() > credentialRecord.expiresAt.getTime()) {
+      credentialRecord.status = "expired";
+      await credentialRecord.save();
+
+      return res.status(401).json({
+        error: "anonymous_credential_expired",
       });
     }
 
     const telemetryValid = verifyTelemetrySignature({
       telemetry,
       telemetrySignature,
-      anonymousPublicKey: credential.anonymousPublicKey,
+      anonymousPublicKey: credentialRecord.anonymousPublicKey,
     });
 
     if (!telemetryValid) {
@@ -48,10 +58,12 @@ telemetryRouter.post("/telemetry", async (req, res) => {
     }
 
     console.log("\nValid anonymous telemetry received:");
+    console.log("Credential ID:", credentialId);
     console.log(JSON.stringify(telemetry, null, 2));
 
     return res.json({
       status: "valid_anonymous_telemetry_received",
+      credentialId,
       receivedAt: new Date().toISOString(),
     });
   } catch (error: any) {

@@ -5,6 +5,23 @@ function canonicalizeTelemetry(telemetry: unknown): string {
   return JSON.stringify(telemetry);
 }
 
+function canonicalizeCredential(credential: AnonymousCredential): string {
+  return JSON.stringify({
+    anonymousPublicKey: credential.anonymousPublicKey,
+    scope: credential.scope,
+    issuedFor: credential.issuedFor,
+    expiresAt: credential.expiresAt,
+    nonce: credential.nonce,
+  });
+}
+
+export function getCredentialId(credential: AnonymousCredential): string {
+  return crypto
+    .createHash("sha256")
+    .update(canonicalizeCredential(credential))
+    .digest("hex");
+}
+
 export function signTelemetryWithAnonymousKey(params: {
   telemetry: unknown;
   anonymousPrivateKey: string;
@@ -23,11 +40,10 @@ export function buildAnonymousTelemetryPayload(params: {
   anonymousPrivateKey: string;
 }) {
   const telemetry = {
-    heartRate: 132,
-    temperature: 37.8,
-    zone: "Eixample",
-    risk: "high",
-    sentAt: new Date().toISOString(),
+    h: 132,
+    tp: 378,
+    z: "E",
+    r: 1,
   };
 
   const telemetrySignature = signTelemetryWithAnonymousKey({
@@ -36,9 +52,8 @@ export function buildAnonymousTelemetryPayload(params: {
   });
 
   return {
-    credential: params.credential,
-    credentialSignature: params.credentialSignature,
-    telemetry,
-    telemetrySignature,
+    c: getCredentialId(params.credential),
+    t: telemetry,
+    s: telemetrySignature,
   };
 }

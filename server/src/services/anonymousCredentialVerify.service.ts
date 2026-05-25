@@ -1,7 +1,5 @@
 import * as crypto from "crypto";
-import {
-  getBlindIssuerPublicKey,
-} from "./blindSignature.service";
+import { getBlindIssuerPublicKey } from "./blindSignature.service";
 
 export interface AnonymousCredential {
   anonymousPublicKey: string;
@@ -15,7 +13,7 @@ function base64UrlToBigInt(value: string): bigint {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
   const padded = normalized.padEnd(
     normalized.length + ((4 - (normalized.length % 4)) % 4),
-    "="
+    "=",
   );
 
   const hex = Buffer.from(padded, "base64").toString("hex");
@@ -54,13 +52,17 @@ function canonicalizeCredential(credential: AnonymousCredential): string {
   });
 }
 
+export function getCredentialId(credential: AnonymousCredential): string {
+  return crypto
+    .createHash("sha256")
+    .update(canonicalizeCredential(credential))
+    .digest("hex");
+}
+
 function hashCredentialToBigInt(credential: AnonymousCredential): bigint {
   const canonical = canonicalizeCredential(credential);
 
-  const digest = crypto
-    .createHash("sha256")
-    .update(canonical)
-    .digest("hex");
+  const digest = crypto.createHash("sha256").update(canonical).digest("hex");
 
   return BigInt("0x" + digest);
 }
@@ -113,6 +115,6 @@ export function verifyTelemetrySignature(params: {
   return verifier.verify(
     params.anonymousPublicKey,
     params.telemetrySignature,
-    "base64"
+    "base64",
   );
 }

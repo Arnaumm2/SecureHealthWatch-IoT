@@ -3,8 +3,7 @@ import {
   loadDeviceCertificate,
   signNonceWithDevicePrivateKey,
 } from "./deviceIdentity";
-import { buildAnonymousTelemetryPayload } from "./anonymousTelemetry";
-import { sendTelemetryOverCoap } from "./coapTelemetry";
+
 import {
   generateAnonymousKeyPair,
   createAnonymousCredential,
@@ -12,6 +11,9 @@ import {
   unblindSignature,
   verifyUnblindedSignature,
 } from "./blindSignature";
+
+import { buildAnonymousTelemetryPayload } from "./anonymousTelemetry";
+import { sendTelemetryOverCoap } from "./coapTelemetry";
 
 const AUTH_SERVER = "http://localhost:3000";
 
@@ -23,7 +25,7 @@ async function requestAnonymousCredential(accessToken: string) {
   console.log("\nRequesting blind issuer public key...");
 
   const publicKeyResponse = await axios.get(
-    `${AUTH_SERVER}/anonymous-credential/public-key`
+    `${AUTH_SERVER}/anonymous-credential/public-key`,
   );
 
   const issuerPublicKey = publicKeyResponse.data;
@@ -64,7 +66,7 @@ async function requestAnonymousCredential(accessToken: string) {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
-    }
+    },
   );
 
   const blindSignature = blindSignResponse.data.blind_signature;
@@ -77,7 +79,7 @@ async function requestAnonymousCredential(accessToken: string) {
   const unblindedSignature = unblindSignature(
     blindSignature,
     blinded.blindingFactor,
-    blinded.issuerN
+    blinded.issuerN,
   );
 
   console.log("Unblinded signature:");
@@ -97,17 +99,31 @@ async function requestAnonymousCredential(accessToken: string) {
     throw new Error("Invalid unblinded signature");
   }
 
+  console.log("\nRegistering anonymous credential with server...");
+
+  const registerResponse = await axios.post(
+    `${AUTH_SERVER}/anonymous-credential/register`,
+    {
+      credential,
+      credentialSignature: unblindedSignature,
+    },
+  );
+
+  console.log("Anonymous credential registered:");
+  console.log(registerResponse.data);
+
   console.log("\nAnonymous credential ready!");
   console.log("From now on, telemetry should use:");
-  console.log("- anonymous credential");
+  console.log("- anonymous credential id");
   console.log("- anonymous private key");
   console.log("- NOT the original device certificate");
   console.log("- NOT the JWT");
+
   return {
-  credential,
-  credentialSignature: unblindedSignature,
-  anonymousPrivateKey: anonymousKeys.privateKey,
-};
+    credential,
+    credentialSignature: unblindedSignature,
+    anonymousPrivateKey: anonymousKeys.privateKey,
+  };
 }
 
 async function pollForAccessToken(deviceCode: string, intervalSeconds: number) {
@@ -128,26 +144,25 @@ async function pollForAccessToken(deviceCode: string, intervalSeconds: number) {
       console.log("\nToken purpose:");
       console.log(response.data.purpose);
 
-     console.log("\nUsing JWT to request anonymous credential...");
+      console.log("\nUsing JWT to request anonymous credential...");
 
-    const anonymousCredentialResult = await requestAnonymousCredential(
-  response.data.access_token
-);
+      const anonymousCredentialResult = await requestAnonymousCredential(
+        response.data.access_token,
+      );
 
-console.log("\nBuilding anonymous telemetry payload...");
+      console.log("\nBuilding anonymous telemetry payload...");
 
-const telemetryPayload = buildAnonymousTelemetryPayload({
-  credential: anonymousCredentialResult.credential,
-  credentialSignature: anonymousCredentialResult.credentialSignature,
-  anonymousPrivateKey: anonymousCredentialResult.anonymousPrivateKey,
-});
+      const telemetryPayload = buildAnonymousTelemetryPayload({
+        credential: anonymousCredentialResult.credential,
+        credentialSignature: anonymousCredentialResult.credentialSignature,
+        anonymousPrivateKey: anonymousCredentialResult.anonymousPrivateKey,
+      });
 
-console.log("\nSending telemetry over CoAP...");
-await sendTelemetryOverCoap(telemetryPayload);
+      console.log("\nSending telemetry over CoAP...");
 
-break;
+      await sendTelemetryOverCoap(telemetryPayload);
 
-    break;
+      break;
     } catch (error: any) {
       const responseError = error.response?.data?.error;
 
@@ -180,9 +195,7 @@ async function main() {
 
   console.log("\nRequesting challenge from server...");
 
-  const challengeResponse = await axios.post(
-    `${AUTH_SERVER}/device/challenge`
-  );
+  const challengeResponse = await axios.post(`${AUTH_SERVER}/device/challenge`);
 
   const { nonce } = challengeResponse.data;
 
@@ -201,12 +214,8 @@ async function main() {
     challengeSignature,
   });
 
-  const {
-    verification_url,
-    user_code,
-    device_code,
-    interval,
-  } = startResponse.data;
+  const { verification_url, user_code, device_code, interval } =
+    startResponse.data;
 
   console.log("\nDevice accepted by server.");
   console.log("QR / activation simulation:");

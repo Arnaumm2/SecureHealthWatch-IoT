@@ -8,7 +8,6 @@ import { deviceAuthRouter } from "./routes/deviceAuth.routes";
 import { anonymousCredentialRouter } from "./routes/anonymousCredentials.routes";
 import { telemetryRouter } from "./routes/telemetry.routes";
 
-
 const envPath = path.resolve(__dirname, "../.env");
 const dotenvResult = dotenv.config({ path: envPath });
 
@@ -29,13 +28,13 @@ async function bootstrap() {
   app.use(deviceAuthRouter);
   app.use(anonymousCredentialRouter);
   app.use(telemetryRouter);
-  
+
   const port = process.env.PORT || 3000;
 
   await connectMongo();
 
-  app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
+  app.listen(Number(port), "0.0.0.0", () => {
+    console.log(`Server running at http://0.0.0.0:${port}`);
   });
 }
 
