@@ -3,11 +3,111 @@ import {
   loadDeviceCertificate,
   signNonceWithDevicePrivateKey,
 } from "./deviceIdentity";
+import { buildAnonymousTelemetryPayload } from "./anonymousTelemetry";
+import { sendTelemetryOverCoap } from "./coapTelemetry";
+import {
+  generateAnonymousKeyPair,
+  createAnonymousCredential,
+  blindCredential,
+  unblindSignature,
+  verifyUnblindedSignature,
+} from "./blindSignature";
 
 const AUTH_SERVER = "http://localhost:3000";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function requestAnonymousCredential(accessToken: string) {
+  console.log("\nRequesting blind issuer public key...");
+
+  const publicKeyResponse = await axios.get(
+    `${AUTH_SERVER}/anonymous-credential/public-key`
+  );
+
+  const issuerPublicKey = publicKeyResponse.data;
+
+  console.log("Blind issuer public key received.");
+
+  console.log("\nGenerating anonymous key pair...");
+
+  const anonymousKeys = generateAnonymousKeyPair();
+
+  console.log("Anonymous public key generated.");
+
+  const credential = createAnonymousCredential(anonymousKeys.publicKey);
+
+  console.log("\nCreating anonymous credential:");
+  console.log({
+    scope: credential.scope,
+    issuedFor: credential.issuedFor,
+    expiresAt: credential.expiresAt,
+    nonce: credential.nonce,
+  });
+
+  console.log("\nBlinding credential...");
+
+  const blinded = blindCredential(credential, issuerPublicKey);
+
+  console.log("Blinded message:");
+  console.log(blinded.blindedMessageHex);
+
+  console.log("\nSending blinded credential to server...");
+
+  const blindSignResponse = await axios.post(
+    `${AUTH_SERVER}/anonymous-credential/blind-sign`,
+    {
+      blindedMessage: blinded.blindedMessageHex,
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  const blindSignature = blindSignResponse.data.blind_signature;
+
+  console.log("\nBlind signature received from server:");
+  console.log(blindSignature);
+
+  console.log("\nUnblinding signature...");
+
+  const unblindedSignature = unblindSignature(
+    blindSignature,
+    blinded.blindingFactor,
+    blinded.issuerN
+  );
+
+  console.log("Unblinded signature:");
+  console.log(unblindedSignature);
+
+  const valid = verifyUnblindedSignature({
+    message: blinded.message,
+    signatureHex: unblindedSignature,
+    issuerN: blinded.issuerN,
+    issuerE: blinded.issuerE,
+  });
+
+  console.log("\nAnonymous credential signature valid?");
+  console.log(valid ? "YES" : "NO");
+
+  if (!valid) {
+    throw new Error("Invalid unblinded signature");
+  }
+
+  console.log("\nAnonymous credential ready!");
+  console.log("From now on, telemetry should use:");
+  console.log("- anonymous credential");
+  console.log("- anonymous private key");
+  console.log("- NOT the original device certificate");
+  console.log("- NOT the JWT");
+  return {
+  credential,
+  credentialSignature: unblindedSignature,
+  anonymousPrivateKey: anonymousKeys.privateKey,
+};
 }
 
 async function pollForAccessToken(deviceCode: string, intervalSeconds: number) {
@@ -28,9 +128,26 @@ async function pollForAccessToken(deviceCode: string, intervalSeconds: number) {
       console.log("\nToken purpose:");
       console.log(response.data.purpose);
 
-      console.log("\nNext step:");
-      console.log("Use this JWT to request a blind signature.");
-      break;
+     console.log("\nUsing JWT to request anonymous credential...");
+
+    const anonymousCredentialResult = await requestAnonymousCredential(
+  response.data.access_token
+);
+
+console.log("\nBuilding anonymous telemetry payload...");
+
+const telemetryPayload = buildAnonymousTelemetryPayload({
+  credential: anonymousCredentialResult.credential,
+  credentialSignature: anonymousCredentialResult.credentialSignature,
+  anonymousPrivateKey: anonymousCredentialResult.anonymousPrivateKey,
+});
+
+console.log("\nSending telemetry over CoAP...");
+await sendTelemetryOverCoap(telemetryPayload);
+
+break;
+
+    break;
     } catch (error: any) {
       const responseError = error.response?.data?.error;
 

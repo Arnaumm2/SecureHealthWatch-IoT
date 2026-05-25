@@ -5,6 +5,9 @@ import cors from "cors";
 
 import { connectMongo } from "./config/mongo";
 import { deviceAuthRouter } from "./routes/deviceAuth.routes";
+import { anonymousCredentialRouter } from "./routes/anonymousCredentials.routes";
+import { telemetryRouter } from "./routes/telemetry.routes";
+
 
 const envPath = path.resolve(__dirname, "../.env");
 const dotenvResult = dotenv.config({ path: envPath });
@@ -24,7 +27,9 @@ async function bootstrap() {
   app.use(express.urlencoded({ extended: true }));
 
   app.use(deviceAuthRouter);
-
+  app.use(anonymousCredentialRouter);
+  app.use(telemetryRouter);
+  
   const port = process.env.PORT || 3000;
 
   await connectMongo();
